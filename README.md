@@ -1,6 +1,12 @@
 # Undertaker
 NodeJS backup utility for the Kinja platform
 
+## Installation
+Download **NPM** and **Node** here: https://www.npmjs.com/get-npm  
+Download a zip of this repo, then extract it.
+Open the command-line and navigate to the newly extracted folder.  
+Run the command 'npm install' — this will download the libraries that Undertaker requires to function.
+
 ## Command Line Use
 ### Jargon  
 **Article:**        The abstract concept of a post.  
@@ -45,7 +51,7 @@ $Undertaker node Undertaker.js example2 https://exampleblog.kinja.com
 
 ### Downloading images
 
-Once downloaded article content has been downloaded, you may optionally choose to download images as well. Be aware that this may take a **significant** amount of bandwidth storage and storage space. You may combine the download flags (--download, --comments) with the image flag (--images) to download images immediately, or choose to download images after the fact.
+Once downloaded article content has been downloaded, you may optionally choose to download images as well. Be aware that this may take a **significant** amount of bandwidth and storage space. You may combine the download flags (--download, --comments) with the image flag (--images) to download images immediately, or choose to download images after the fact.
 
 ```
 $Undertaker node Undertaker.js example --download --images
