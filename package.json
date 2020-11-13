@@ -1,0 +1,21 @@
+{
+  "name": "Undertaker",
+  "version": "1.0.0",
+  "description": "Downloads Kinja blogs and user blogs; a 'herbal' remedy of sorts.",
+  "main": "Undertaker.js",
+  "dependencies": {
+    "bson": "^4.0.2",
+    "cheerio": "^1.0.0-rc.3",
+    "node-fetch": "^2.6.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "archive",
+    "kinja"
+  ],
+  "author": "crose7",
+  "license": "ISC"
+}
