@@ -36,6 +36,7 @@ let Undertaker              =   class{
         this.linkIDSet      =   new Set()
 
         this.errors         =   []
+        this.update         =   process.argv.some(x=>x===`--update`)  ||  ( args?args.update:0 )
         this.download       =   process.argv.some(x=>x===`--download`)  ||  ( args?args.download:0 )
         this.comments       =   process.argv.some(x=>x===`--comments`)  ||  ( args?args.comments:0 )
         this.images         =   process.argv.some(x=>x===`--images`)    ||  ( args?args.images:0 )
@@ -159,7 +160,7 @@ console.log(`TIME`,startTime,endTime,startTimeIndex,endTimeIndex)
             this.updateUniqueIDMap()
         }
         // else{
-        if( process.argv.some( x => x===`--update`) ){
+        if( this.update ){
 console.log(`Undertaker start() update`)
             let startTimeIndex      =   process.argv.findIndex(x=>x==`--startTime`)
             let endTimeIndex        =   process.argv.findIndex(x=>x==`--endTime`)
