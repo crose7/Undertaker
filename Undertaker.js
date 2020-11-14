@@ -290,7 +290,7 @@ console.log(`Undertaker start() --comments while\t${c}/${commentIDs.length}\tloo
         // THERE MAY HAVE BEEN A BETTER WAY TO PACK URLS INTO PACKS OF 100
         // BUT THIS IS WHAT I CAME UP WITH
         if( this.download ){
-            while ( queueIDs.length && process.argv.some(x=>x==`--download`) ){
+            while ( queueIDs.length ){
             // while ( 0 ){
                 let queryString =   `${apiURL}`
                 let slice       =   queueIDs.splice(0,100)  //SLICE MUTATES THE ORIGINAL ARRAY! :D
@@ -372,7 +372,7 @@ console.log(`Undertaker start() Finished content download`)
         //
         // }
 
-        if( args?args.images:this.images ){
+        if( this.images ){
 console.log(`Undertaker start() --images`)
             if( !fs.existsSync(`images`) ){ fs.mkdirSync(`images`) }
             // if( !fs.existsSync(`${name}/images`) ){ fs.mkdirSync(`${name}/images`) }
