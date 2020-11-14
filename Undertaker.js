@@ -234,6 +234,7 @@ console.log(`Undertaker start() update`)
 
 
         if( process.argv.some(x=>x==`--comments`) ){
+            let c=0
             commentIDs.forEach( id =>{
                 let startIndex  =   0
                 taskQueue.addItem( new TaskItem(async _=>{
@@ -241,11 +242,13 @@ console.log(`Undertaker start() update`)
                     let fetching            =   true
                     let article
                     let comments            =   []
-                    let c=0
+                    let d=0
+                    // let c=0
                     while ( fetching ){
+                        c++
                         let halt            =   false
                         let queryString     =   `https://kinja.com/ajax/comments/views/flatReplies/${id}?startIndex=${startIndex}&maxReturned=100&approvedOnly=false&cache=true&sorting=oldest`
-                        let r               =   await fetch( queryString ).catch( err => { console.error(`Undertaker start --comments TaskItem`,err); this.errors.push(err); this.errors.push(err); halt=true } )
+                        let r               =   await fetch( queryString ).catch( err => { console.error(`Undertaker start --comments TaskItem`,err); this.errors.push(err); halt=true } )
                         if( halt ){ return }
                             r               =   await r.json()
                         if( !r.data ){
@@ -257,10 +260,10 @@ console.log(`Undertaker start() update`)
                         }
                         article             =   r.data.items[0].reply
                         let children        =   r.data.items[0].children
-console.log(`Undertaker start() --comments while`,article.id,article.headline)
+// console.log(`Undertaker start() --comments while`,article.id,article.headline)
+console.log(`Undertaker start() --comments while\t${c}/${commentIDs.length}\tloops:${d}\tid:${id}\tstartIndex:${children.pagination.curr.startIndex}\ttotal:${children.pagination.curr.total}\titems:${children.items.length}\ttitle:${article.headline}`)
                         if ( children ){
-// console.log(`!COMMENTS`,c,id,children.pagination.curr.startIndex,children.pagination.curr.total,children.items.length)
-console.log(`Undertaker start() --comments while loops:${c}\tid:${id}\tstartIndex:${children.pagination.curr.startIndex}\ttotal:${children.pagination.curr.total}\titems:${children.items.length}`)
+// console.log(`Undertaker start() --comments while\t${article.headline}\t${c}/${commentIDs.length}\tloops:${d}\tid:${id}\tstartIndex:${children.pagination.curr.startIndex}\ttotal:${children.pagination.curr.total}\titems:${children.items.length}`)
                             // children.items.map( x => JSON.stringify(x) ).map( x => zlib.gzipSync(x) ).forEach( child => commentOutput.write(child) )
                             children.items.forEach(x=>comments.push(x))
                             fetching        =   !!children.pagination.next
@@ -268,7 +271,7 @@ console.log(`Undertaker start() --comments while loops:${c}\tid:${id}\tstartInde
 // else{console.log(`COMMENTS DONE!`)}
                         }else{ fetching=false }
                         startIndex          +=  100
-                        c++
+                        d++
                     }
                     // console.log(`!ARTICLE`,article.headline)
                     articleOutput.write( zlib.gzipSync( JSON.stringify(article) ) )
@@ -311,7 +314,7 @@ console.log(`Undertaker start() --comments while loops:${c}\tid:${id}\tstartInde
                     // IF THE <author, blog, link> IS NEW, ADD IT, ELSE SKIP
                     Object.entries( r.data.authors ).forEach( x => x[1].forEach( data => {
                         if ( !this.authorIDSet.has( data.id ) ){
-                            console.log(data.id)
+                            // console.log(data.id)
                             this.authorIDSet.add( data.id )
                             let y = zlib.gzipSync( JSON.stringify(data) )
                             authorOutput.write( y )
@@ -320,7 +323,7 @@ console.log(`Undertaker start() --comments while loops:${c}\tid:${id}\tstartInde
 
                     Object.entries( r.data.blogs ).forEach( x => x[1].forEach( data => {
                         if ( !this.blogIDSet.has( data.id ) ){
-                            console.log(data.id)
+                            // console.log(data.id)
                             this.blogIDSet.add( data.id )
                             let y = zlib.gzipSync( JSON.stringify( data ) )
                             blogOutput.write( y )
@@ -329,7 +332,7 @@ console.log(`Undertaker start() --comments while loops:${c}\tid:${id}\tstartInde
 
                     Object.entries( r.data.links ).forEach( x => x[1].forEach( data => {
                         if ( !this.linkIDSet.has( data.url ) ){
-                            console.log(data.url)
+                            // console.log(data.url)
                             // blogIDSet.add( data.url )    //WAS blogID FOR SOME REASON?
                             this.linkIDSet.add( data.url )
                             let y = zlib.gzipSync( JSON.stringify( data ) )
@@ -345,6 +348,11 @@ console.log(`Undertaker start() --comments while loops:${c}\tid:${id}\tstartInde
         // TODO: ADD FAILED DOWNLOAD COUNT
 console.log(`Undertaker start() Beginning content download`)
         await taskQueue.start()
+console.log(`Undertaker start() Finished content download`)
+        if( this.errors.length ){
+            this.errors.forEach(x=>console.log(x))
+            console.log(`${this.errors.length} errors, please review terminal output; you may need to rerun command.`)
+        }
 
 
 
@@ -362,7 +370,7 @@ console.log(`Undertaker start() Beginning content download`)
         // }
 
         if( args?args.images:process.argv.some(x=>x===`--images`) ){
-console.log(`!IMAGES`)
+console.log(`Undertaker start() --images`)
             if( !fs.existsSync(`images`) ){ fs.mkdirSync(`images`) }
             // if( !fs.existsSync(`${name}/images`) ){ fs.mkdirSync(`${name}/images`) }
 
@@ -398,11 +406,11 @@ console.log(`Undertaker start() --images ArchiveManager postReader callback`,und
                 // NESTING THIS BECAUSE I SUCK AT promises
                 let commentReader               =       new ArchiveManager(`${name}/comments.gz`, async ()=>{
                     let undownloadedImages  =   articleImages.map( x => `${x.id}.${x.format}`).filter( x => !downloadedImagesSet.has(x) )
-console.log(`Undertaker start() --images ArchiveManager commentReader callback`,undownloadedImages.length)
+console.log(`Undertaker start() --images ArchiveManager commentReader callback\tundownloadedImages:${undownloadedImages.length}`)
                     for( let i = 0; i < undownloadedImages.length; i++ ){
                         let filename            =       undownloadedImages[i]
                         imageQueue.addItem( new TaskItem( async ()=>{
-console.log(`IMAGE`,i,undownloadedImages.length,filename)
+console.log(`Undertaker start() --images TaskItem\t${i}\t${undownloadedImages.length}\t${filename}`)
                             let image           =   await fetch(`https://i.kinja-img.com/gawker-media/image/upload/${filename}`)
                                 image           =   await image.arrayBuffer()
                             writeFilePromise(`images/${filename}`,Buffer.from(image))
@@ -430,9 +438,11 @@ console.log(`IMAGE`,i,undownloadedImages.length,filename)
             // GET IMAGES, RUNS BEFORE imageQueue!
             postReader.each( post => recurse(post.body) )
             // postReader.each( post => post )
-        }else{console.log(`Undertaker start() --images NOT IMAGES`)}
+            console.log(`Undertaker start() --images END`)
+        }else{
+            // console.log(`Undertaker start() --images NOT IMAGES`)
+        }
 
-        console.log(`Undertaker start() --images END`)
 
         //UTILITY FUNCITONS
         async function downloadFile(url, outputPath) {
