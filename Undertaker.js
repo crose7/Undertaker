@@ -36,6 +36,9 @@ let Undertaker              =   class{
         this.linkIDSet      =   new Set()
 
         this.errors         =   []
+        this.download       =   process.argv.some(x=>x===`--download`)  ||  ( args?args.download:0 )
+        this.comments       =   process.argv.some(x=>x===`--comments`)  ||  ( args?args.comments:0 )
+        this.images         =   process.argv.some(x=>x===`--images`)    ||  ( args?args.images:0 )
         args?0:this.start()
     }
 
@@ -203,22 +206,22 @@ console.log(`Undertaker start() update`)
 
     console.log(`Undertaker start() queueIDs`,queueIDs.length)
         let apiURL          =   `https://kinja.com/api/magma/post/views/id/?`
-        let postOutput      =   process.argv.some(x=>x===`--download`)?fs.createWriteStream(`${this.name}/posts.gz`,   { flags: `a` } ):null
-        let authorOutput    =   process.argv.some(x=>x===`--download`)?fs.createWriteStream(`${this.name}/authors.gz`, { flags: `a` } ):null
-        let blogOutput      =   process.argv.some(x=>x===`--download`)?fs.createWriteStream(`${this.name}/blogs.gz`, { flags: `a` } ):null
-        let linkOutput      =   process.argv.some(x=>x===`--download`)?fs.createWriteStream(`${this.name}/links.gz`, { flags: `a` } ):null
-        let articleOutput   =   process.argv.some(x=>x===`--comments`)?fs.createWriteStream(`${this.name}/articles.gz`, { flags: `a` } ):null
-        let commentOutput   =   process.argv.some(x=>x===`--comments`)?fs.createWriteStream(`${this.name}/comments.gz`, { flags: `a` } ):null
+        let postOutput      =   this.download?fs.createWriteStream(`${this.name}/posts.gz`,   { flags: `a` } ):null
+        let authorOutput    =   this.download?fs.createWriteStream(`${this.name}/authors.gz`, { flags: `a` } ):null
+        let blogOutput      =   this.download?fs.createWriteStream(`${this.name}/blogs.gz`, { flags: `a` } ):null
+        let linkOutput      =   this.download?fs.createWriteStream(`${this.name}/links.gz`, { flags: `a` } ):null
+        let articleOutput   =   this.comments?fs.createWriteStream(`${this.name}/articles.gz`, { flags: `a` } ):null
+        let commentOutput   =   this.comments?fs.createWriteStream(`${this.name}/comments.gz`, { flags: `a` } ):null
 
         let taskQueue       =   new TaskQueue(10, res =>{
             console.log(`Undertaker start() download taskQueue FINISH`)
-            process.argv.some(x=>x===`--download`)?postOutput.end():0
-            process.argv.some(x=>x===`--download`)?authorOutput.end():0
-            process.argv.some(x=>x===`--download`)?blogOutput.end():0
-            process.argv.some(x=>x===`--download`)?linkOutput.end():0
+            this.download?postOutput.end():0
+            this.download?authorOutput.end():0
+            this.download?blogOutput.end():0
+            this.download?linkOutput.end():0
 
-            process.argv.some(x=>x===`--comments`)?articleOutput.end():0
-            process.argv.some(x=>x===`--comments`)?commentOutput.end():0
+            this.comments?articleOutput.end():0
+            this.comments?commentOutput.end():0
             //UPDATE UNIQUE ID LOG
             console.log(`Undertaker start() TaskQueue PRE SAVE map\tuniqueIDs:${this.uniqueIDMap.size}\tarticleListLength:${this.articleList.data.length}`)
             if( (this.articleList.length===0) || (this.uniqueIDMap.size===0) ){ throw(`INVALID URL, ARCHIVE CORRUPTED: DELETE THIS ARCHIVE AND RETRY WITH A KINJA URL.`) }
@@ -233,7 +236,7 @@ console.log(`Undertaker start() update`)
 
 
 
-        if( process.argv.some(x=>x==`--comments`) ){
+        if( this.comments ){
             let c=0
             commentIDs.forEach( id =>{
                 let startIndex  =   0
@@ -286,7 +289,7 @@ console.log(`Undertaker start() --comments while\t${c}/${commentIDs.length}\tloo
 
         // THERE MAY HAVE BEEN A BETTER WAY TO PACK URLS INTO PACKS OF 100
         // BUT THIS IS WHAT I CAME UP WITH
-        if( process.argv.some(x=>x==`--download`) ){
+        if( this.download ){
             while ( queueIDs.length && process.argv.some(x=>x==`--download`) ){
             // while ( 0 ){
                 let queryString =   `${apiURL}`
@@ -346,12 +349,12 @@ console.log(`Undertaker start() --comments while\t${c}/${commentIDs.length}\tloo
             }
         }
         // TODO: ADD FAILED DOWNLOAD COUNT
-console.log(`Undertaker start() Beginning content download`)
+console.log(`Undertaker start() Beginning content download`,this.args)
         await taskQueue.start()
 console.log(`Undertaker start() Finished content download`)
         if( this.errors.length ){
             this.errors.forEach(x=>console.log(x))
-            console.log(`${this.errors.length} errors, please review terminal output; you may need to rerun command.`)
+            console.log(`${this.errors.length} errors, please review terminal output, and rerun command.`)
         }
 
 
@@ -365,11 +368,11 @@ console.log(`Undertaker start() Finished content download`)
         let dlInfo=[]
         let r=[]    // RECURSE USES THIS; YES IT'S GROSS, YES IT WORKS
 
-        // if( args?args.images:process.argv.some(x=>x===`--images`) ){
+        // if( args?args.images:this.images ){
         //
         // }
 
-        if( args?args.images:process.argv.some(x=>x===`--images`) ){
+        if( args?args.images:this.images ){
 console.log(`Undertaker start() --images`)
             if( !fs.existsSync(`images`) ){ fs.mkdirSync(`images`) }
             // if( !fs.existsSync(`${name}/images`) ){ fs.mkdirSync(`${name}/images`) }
