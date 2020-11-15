@@ -357,7 +357,7 @@ console.log(`Undertaker start() Beginning content download`,this.args)
 console.log(`Undertaker start() Finished content download`)
         clearInterval(this.interval)
         if( this.errors.length ){
-            this.errors.forEach((x,i)=>console.log(`Error #${i}`,))
+            this.errors.forEach((x,i)=>console.log(`Error #${i}`,x))
             console.log(`${this.errors.length} errors, please review terminal output, and rerun command.`)
         }
 
