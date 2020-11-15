@@ -2,10 +2,32 @@
 NodeJS backup utility for the Kinja platform
 
 ## Installation
+
 Download **NPM** and **Node** here: https://www.npmjs.com/get-npm  
-Download a zip of this repo, then extract it.
-Open the command-line and navigate to the newly extracted folder.  
-Run the command 'npm install' — this will download the libraries that Undertaker requires to function.
+Information about installing **Git** can be found here: https://git-scm.com/book/en/v2/Getting-Started-Installing-Git  
+You can check if you already have these installed by running these commands at the command line: `npm`, `node`, `git`.
+
+### GIT Method (Easy! Recommended!)
+1) Open the command line
+2) Navigate to the folder of your choice
+3) Run the command `git clone https://github.com/crose7/Undertaker` — this will install the base files.
+4) Navigate to the newly created Undertaker folder
+5) Run the command `npm install` — this will download the libraries that Undertaker requires to function. 
+
+### Installing by hand (Tedious in the long run!)
+1) Download a zip of this repo, then extract it.
+2) Open the command line
+3) Navigate to the folder you just extracted
+4) Run the command `npm install`
+
+## Updating Undertaker  
+Undertaker is in rapid development. Too ensure that you recieve the benefits of these added features, take the following steps:  
+### GIT Method
+Navigate to your Undertaker folder in the command line and run `git pull`  
+
+### By hand  
+Download a zip of the repo, extract the files, drag those files into your pre-existing directory and overwrite the old ones.
+
 
 ## Command Line Use
 ### Jargon  
@@ -79,7 +101,7 @@ A: Some blogs are very large! A blog of 50,000 articles might take well over 10 
 Q: I'm done waiting. I'm going to force-quit Undertaker.  
 A: If you do, you'll have duplicate content and bloated filesizes, and may even corrupt your data.
 
-Q: Oh no! I did that! What should I do?  
+Q: Oh no! I did that! What should I do?
 A: Create a new archive; you may save yourself some time by copying the archive index file `articleList` to new folder, then using that folder's name as the name of your new archive.
 
 Q: Undertaker keeps showing errors! What went wrong?  
