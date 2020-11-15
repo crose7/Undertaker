@@ -36,10 +36,21 @@ let Undertaker              =   class{
         this.linkIDSet      =   new Set()
 
         this.errors         =   []
+
+        this.numPostDownloads       =   0
+        this.numCommentDownloads    =   0
+        this.numArticleDownloads    =   0
+        this.numDownloadErrors      =   0
+        this.numImageDownloads      =   0
+        this.numCommmentImageDownloads= 0
+
         this.update         =   process.argv.some(x=>x===`--update`)  ||  ( args?args.update:0 )
         this.download       =   process.argv.some(x=>x===`--download`)  ||  ( args?args.download:0 )
         this.comments       =   process.argv.some(x=>x===`--comments`)  ||  ( args?args.comments:0 )
         this.images         =   process.argv.some(x=>x===`--images`)    ||  ( args?args.images:0 )
+        this.commentImages  =   process.argv.some(x=>x===`--commentImages`)    ||  ( args?args.commentImages:0 )
+        this._status         =   process.argv.some(x=>x===`--status`)    ||  ( args?args.status:0 )
+        if( this._status ){ this.status(); return; }
         args?0:this.start()
     }
 
@@ -107,6 +118,68 @@ console.log(`POST manager`)
             manager.each( item => r.add(item[key]) )
         })
         return p
+    }
+
+
+
+
+    async status(){
+        console.log(this.name)
+        let articleList         =   new ArticleList( {name:this.name} )
+        // await articleList.start()
+        await this.updateUniqueIDMap()
+        let x={
+            posts:0,
+            totalPosts:0,
+            replyCounts:0,
+            articles:0,
+            totalArticles:0,
+            comments:0,
+            images:0,
+            totalImages:0,
+            commentImages:0,
+            totalCommentImages:0,
+        }
+        if( fs.existsSync(`${this.name}/posts.gz`) ){
+            let am          =   new ArchiveManager(`${this.name}/posts.gz`,()=>{
+                console.log(`POSTS:\t\t${x.posts}/${this.uniqueIDMap.size}\t${x.replyCounts} comments`)
+                console.log(`IMAGES:\t\t${x.images}/${x.totalImages}`)
+            })
+            am.each(item=>{
+                x.posts++
+                x.replyCounts+=item.replyCount
+                recurse(item.body,false)
+            })
+        }
+
+        if( fs.existsSync(`${this.name}/comments.gz`) ){
+            let am          =   new ArchiveManager(`${this.name}/comments.gz`,()=>{
+                console.log(`ARTICLES:\t${x.articles}/${this.uniqueIDMap.size}\t${x.comments} DOWNLOADED comments`)
+                console.log(`COMMENT IMAGES:\t${x.commentImages}/${x.totalCommentImages}`)
+            })
+            am.each(item=>{
+                x.articles++
+                x.comments+=item.length
+                item.forEach(comment=>recurse(comment.body,true))
+            })
+        }
+
+        if( fs.existsSync(`${this.name}/images`) ){ x.images        =   fs.readdirSync(`${this.name}/images`).length }
+        if( fs.existsSync(`${this.name}/commentImages`) ){ x.commentImages =   fs.readdirSync(`${this.name}/commentImages`).length }
+
+        function recurse(y,isComments){
+            // let tabSTR      =   new Array(d).fill(`\t`).toString().replace(/,/g,``);
+            if(y.type == `Image`){
+                if(!isComments){x.totalImages++}
+                else{x.totalCommentImages++}
+            }
+            if(typeof y === 'object'){
+                for(let i in y){
+                    let item    =   y[i]
+                    recurse(item,isComments)
+                }
+            }else{}
+        }
     }
 
 
@@ -205,6 +278,9 @@ console.log(`Undertaker start() update`)
             commentIDs.push(key)
         })
 
+        let queueIDCount    =   queueIDs.length
+        let commentIDCount  =   commentIDs.length
+
     console.log(`Undertaker start() queueIDs`,queueIDs.length)
         let apiURL          =   `https://kinja.com/api/magma/post/views/id/?`
         let postOutput      =   this.download?fs.createWriteStream(`${this.name}/posts.gz`,   { flags: `a` } ):null
@@ -224,7 +300,8 @@ console.log(`Undertaker start() update`)
             this.comments?articleOutput.end():0
             this.comments?commentOutput.end():0
             //UPDATE UNIQUE ID LOG
-            console.log(`Undertaker start() TaskQueue PRE SAVE map\tuniqueIDs:${this.uniqueIDMap.size}\tarticleListLength:${this.articleList.data.length}`)
+            // console.log(`Undertaker start() TaskQueue PRE SAVE map\tuniqueIDs:${this.uniqueIDMap.size}\tarticleListLength:${this.articleList.data.length}`)
+            console.log(`Undertaker start() TaskQueue FINISH\tdownloadedPosts:${this.numPostDownloads}/${queueIDCount}\tdownloadedArticles:${this.numArticleDownloads}/${commentIDCount}\tdownloadedComments:${this.numCommentDownloads}\tdownloadedImages:${this.numImageDownloads}`)
             if( (this.articleList.length===0) || (this.uniqueIDMap.size===0) ){ throw(`INVALID URL, ARCHIVE CORRUPTED: DELETE THIS ARCHIVE AND RETRY WITH A KINJA URL.`) }
             // let x = this.articleList.data.reduce( (acc,id) =>{
             //     if(!acc[id]){acc[id]=1}
@@ -247,7 +324,7 @@ console.log(`Undertaker start() update`)
                     let fetching            =   true
                     let article
                     let comments            =   []
-                    let d=0
+                    let loopCount           =   0
                     // let c=0
                     while ( fetching ){
                         c++
@@ -265,23 +342,23 @@ console.log(`Undertaker start() update`)
                         }
                         article             =   r.data.items[0].reply
                         let children        =   r.data.items[0].children
-// console.log(`Undertaker start() --comments while`,article.id,article.headline)
-console.log(`Undertaker start() --comments while\t${c}/${commentIDs.length}\tloops:${d}\tid:${id}\tstartIndex:${children.pagination.curr.startIndex}\ttotal:${children.pagination.curr.total}\titems:${children.items.length}\ttitle:${article.headline}`)
+// console.log(`Undertaker start() --comments while\t${this.numArticleDownloads}/${commentIDs.length}\tloops:${d}\tid:${id}\tstartIndex:${children.pagination.curr.startIndex}\ttotal:${children.pagination.curr.total}\titems:${children.items.length}\ttitle:${article.headline}`)
                         if ( children ){
-// console.log(`Undertaker start() --comments while\t${article.headline}\t${c}/${commentIDs.length}\tloops:${d}\tid:${id}\tstartIndex:${children.pagination.curr.startIndex}\ttotal:${children.pagination.curr.total}\titems:${children.items.length}`)
                             // children.items.map( x => JSON.stringify(x) ).map( x => zlib.gzipSync(x) ).forEach( child => commentOutput.write(child) )
                             children.items.forEach(x=>comments.push(x))
+                            this.numCommentDownloads+=children.items.length
                             fetching        =   !!children.pagination.next
-// if ( !!children.pagination.next ){console.log(`CONTINUE COMMENTS`)}
-// else{console.log(`COMMENTS DONE!`)}
+
                         }else{ fetching=false }
                         startIndex          +=  100
-                        d++
+                        loopCount++
                     }
-                    // console.log(`!ARTICLE`,article.headline)
+
+                    this.numArticleDownloads++
                     articleOutput.write( zlib.gzipSync( JSON.stringify(article) ) )
                     commentOutput.write( zlib.gzipSync( JSON.stringify(comments) ) )
-                    // this.uniqueIDMap.get(id).post           =   true
+                    // console.log(`Undertaker start() --comments TaskItem\t${this.numArticleDownloads}/${commentIDCount} articles`)
+console.log(`Undertaker start() --comments while\t${this.numArticleDownloads}/${commentIDs.length}\tloops:${loopCount}\tid:${id}\tcomments:${comments.length}\ttitle:${article.headline}`)
                     this.uniqueIDMap.get(id).comments       =   true
                     this.saveUniqueIDMap()
                 }))
@@ -314,8 +391,9 @@ console.log(`Undertaker start() --comments while\t${c}/${commentIDs.length}\tloo
                         .forEach(   x    => {
                             postOutput.write(x[0])
                             this.uniqueIDMap.get(x[1]).post=true
-        // console.log(`MAP ITEM`,this.uniqueIDMap.get(x[1]))
+                            this.numPostDownloads++
                         })
+                    console.log(`Undertaker start() download TaskItem\t${this.numPostDownloads}/${queueIDCount} posts`)
 
                     // IF THE <author, blog, link> IS NEW, ADD IT, ELSE SKIP
                     Object.entries( r.data.authors ).forEach( x => x[1].forEach( data => {
@@ -355,11 +433,11 @@ console.log(`Undertaker start() --comments while\t${c}/${commentIDs.length}\tloo
 console.log(`Undertaker start() Beginning content download`,this.args)
         await taskQueue.start()
 console.log(`Undertaker start() Finished content download`)
-        clearInterval(this.interval)
         if( this.errors.length ){
             this.errors.forEach((x,i)=>console.log(`Error #${i}`,x))
             console.log(`${this.errors.length} errors, please review terminal output, and rerun command.`)
         }
+        clearInterval(this.interval)
 
 
 
@@ -376,19 +454,28 @@ console.log(`Undertaker start() Finished content download`)
         //
         // }
 
-        if( this.images ){
+        if( this.images || this.commentImages ){
 console.log(`Undertaker start() --images`)
-            if( !fs.existsSync(`images`) ){ fs.mkdirSync(`images`) }
-            // if( !fs.existsSync(`${name}/images`) ){ fs.mkdirSync(`${name}/images`) }
+            let articleImages           =   []
+            let commentImages           =   []
 
-            let downloadedImagesSet     =   fs.readdirSync(`images`)
-            // let downloadedImagesSet     =   fs.readdirSync(`${name}/images`)
+            let postFileInfo            =   fs.existsSync(`${name}/posts.gz`)   ?   fs.statSync(`${name}/posts.gz`).size:0
+            let articleFileInfo         =   fs.existsSync(`${name}/articles.gz`)?   fs.statSync(`${name}/articles.gz`).size:0
+            if( ( postFileInfo === 0 ) && ( articleFileInfo === 0) ){ throw(`Undertaker start() --images NO CONTENT DOWNLOADED!`); return }
+            let fileToScan              =   postFileInfo > articleFileInfo?     `posts` : `articles`
+console.log(`FILE TO SCAN`,fileToScan)
+
+            // if( !fs.existsSync(`images`) ){ fs.mkdirSync(`images`) }
+            if( !fs.existsSync(`${name}/images`) ){ fs.mkdirSync(`${name}/images`) }
+
+            // let downloadedImagesSet     =   fs.readdirSync(`images`)
+            let downloadedImagesSet     =   fs.readdirSync(`${name}/images`)
                 downloadedImagesSet     =   downloadedImagesSet.reduce( (acc,x) => acc.add(x), new Set() )
-            let articleImages           =   r
+            // let articleImages           =   r
 
 
 
-            let postReader              =   new ArchiveManager(`${name}/articles.gz`,async _=>{
+            let postReader              =   new ArchiveManager(`${name}/${fileToScan}.gz`,async _=>{
                 let undownloadedImages  =   articleImages.map( x => `${x.id}.${x.format}`).filter( x => !downloadedImagesSet.has(x) )
 console.log(`Undertaker start() --images ArchiveManager postReader callback`,undownloadedImages.length)
 
@@ -408,33 +495,78 @@ console.log(`Undertaker start() --images ArchiveManager postReader callback`,und
                     //     //     console.log(`${dlSize}\t${filename}\t${parseInt(info.headers.get(`content-length`))}\t${i}\t${undownloadedImages.length}\t${filename}`)
                     //     // await sleep(1)
                     // }) )
+                    if( this.images ){
 
-                }
-                // NESTING THIS BECAUSE I SUCK AT promises
-                let commentReader               =       new ArchiveManager(`${name}/comments.gz`, async ()=>{
-                    let undownloadedImages  =   articleImages.map( x => `${x.id}.${x.format}`).filter( x => !downloadedImagesSet.has(x) )
-console.log(`Undertaker start() --images ArchiveManager commentReader callback\tundownloadedImages:${undownloadedImages.length}`)
-                    for( let i = 0; i < undownloadedImages.length; i++ ){
-                        let filename            =       undownloadedImages[i]
-                        imageQueue.addItem( new TaskItem( async ()=>{
-console.log(`Undertaker start() --images TaskItem\t${i}\t${undownloadedImages.length}\t${filename}`)
+                    imageQueue.addItem( new TaskItem( async ()=>{
+
+                            // this.numImageDownloads++
+                            // console.log(`Undertaker start() --images TaskItem\t${this.numImageDownloads}\t${undownloadedImages.length}\t${filename}`)
+                            // return
+
                             let image           =   await fetch(`https://i.kinja-img.com/gawker-media/image/upload/${filename}`)
+                                                    .catch(err=>{
+                                                        console.error(`Undertaker start() --images post${err}`)
+                                                        this.errors.push(`Undertaker start() --images post${err}`)
+                                                        this.numDownloadErrors++
+                                                    })
                                 image           =   await image.arrayBuffer()
-                            writeFilePromise(`images/${filename}`,Buffer.from(image))
-                            // writeFilePromise(`${name}/images/${filename}`,Buffer.from(image))
-                            // let info            =   await fetch(`https://i.kinja-img.com/gawker-media/image/upload/${filename}`,{method:`HEAD`})
-                            //     dlSize          +=  parseInt(info.headers.get(`content-length`))
-                            //     dlInfo.push([filename,parseInt(info.headers.get(`content-length`))])
-                            //     console.log(`${dlSize}\t${filename}\t${parseInt(info.headers.get(`content-length`))}`)
+                                this.numImageDownloads++
+                                console.log(`Undertaker start() --images TaskItem\t${this.numImageDownloads}/${undownloadedImages.length}\t${filename}\tsize:${image.byteLength}`)
+                            writeFilePromise(`${name}/images/${filename}`,Buffer.from(image))
+                            // writeFilePromise(`images/${filename}`,Buffer.from(image))
                         }))
                     }
-                    await imageQueue.start()
-                })
-                commentReader.each( comments =>{
-                    comments.forEach( comment => {
-                        recurse(comment.body)
+                }
+                console.log(`Undertaker start() --images imageQueue START`)
+                await imageQueue.start()
+                console.log(`Undertaker start() --images imageQueue FINISH\t${this.numImageDownloads}/${undownloadedImages.length}`)
+
+                // NESTING THIS BECAUSE I SUCK AT promises
+                if ( this.commentImages ){
+                    if( !fs.existsSync(`${name}/commentImages`) ){ fs.mkdirSync(`${name}/commentImages`) }
+                    console.log(`Undertaker start() --commentImages ArchiveManager postReader callback`,undownloadedImages.length)
+                    if( !fs.existsSync(`${name}/comments.gz`) ){throw(`Undertaker start() --commentImages COMMENTS NOT DOWNLOADED!`)}
+                    let commentReader               =       new ArchiveManager(`${name}/comments.gz`, async ()=>{
+
+                        let undownloadedImages      =   commentImages.map( x => `${x.id}.${x.format}`).filter( x => !downloadedImagesSet.has(x) )
+                        console.log(`Undertaker start() --commentImages ArchiveManager commentReader callback\tundownloadedImages:${undownloadedImages.length}`)
+
+                        for( let i = 0; i < undownloadedImages.length; i++ ){
+
+                            let filename            =       undownloadedImages[i]
+
+                            imageQueue.addItem( new TaskItem( async ()=>{
+
+                                // this.numCommmentImageDownloads++
+                                // console.log(`Undertaker start() --commentImages TaskItem\t${this.numCommmentImageDownloads}\t${undownloadedImages.length}\t${filename}`)
+                                // return
+                                let image           =   await fetch(`https://i.kinja-img.com/gawker-media/image/upload/${filename}`)
+                                                        .catch(err=>{
+                                                            console.error(`Undertaker start() --commentImages post${err}`)
+                                                            this.errors.push(`Undertaker start() --commentImages post${err}`)
+                                                            this.numDownloadErrors++
+                                                        })
+                                image               =   await image.arrayBuffer()
+                                this.numCommmentImageDownloads++
+                                console.log(`Undertaker start() --commentImages TaskItem\t${this.numCommmentImageDownloads}/${undownloadedImages.length}\t${filename}\tsize:${image.byteLength}`)
+                                writeFilePromise(`${name}/commentImages/${filename}`,Buffer.from(image))
+                                // writeFilePromise(`commentImages/${filename}`,Buffer.from(image))
+                                // let info            =   await fetch(`https://i.kinja-img.com/gawker-media/image/upload/${filename}`,{method:`HEAD`})
+                                //     dlSize          +=  parseInt(info.headers.get(`content-length`))
+                                //     dlInfo.push([filename,parseInt(info.headers.get(`content-length`))])
+                                //     console.log(`${dlSize}\t${filename}\t${parseInt(info.headers.get(`content-length`))}`)
+                            }))
+                        }
+                        console.log(`Undertaker start() --commentImages imageQueue START`)
+                        await imageQueue.start()
+                        console.log(`Undertaker start() --commentImages imageQueue FINISH\t${this.numCommmentImageDownloads}/${undownloadedImages.length}`)
                     })
-                })
+                    commentReader.each( comments =>{
+                        comments.forEach( comment => {
+                            recurse(comment.body,commentImages)
+                        })
+                    })
+                }else{console.warn(`COMMENTS NOT DOWNLOADED!`)}
 
                 // START DOWNLOADING IMAGES
                 // console.log(`Undertaker start() IMAGE QUEUE START`)
@@ -443,12 +575,13 @@ console.log(`Undertaker start() --images TaskItem\t${i}\t${undownloadedImages.le
 
             })
             // GET IMAGES, RUNS BEFORE imageQueue!
-            postReader.each( post => recurse(post.body) )
+            postReader.each( post => recurse(post.body,articleImages) )
             // postReader.each( post => post )
             console.log(`Undertaker start() --images END`)
         }else{
             // console.log(`Undertaker start() --images NOT IMAGES`)
         }
+console.log(`AFTER IMAGES`)
 
 
         //UTILITY FUNCITONS
@@ -457,19 +590,19 @@ console.log(`Undertaker start() --images TaskItem\t${i}\t${undownloadedImages.le
                 r           =   await r.arrayBuffer()
             writeFilePromise(outputPath,Buffer.from(r))
         }
-        function recurse(x,id){
+        function recurse(x,ctx){
             let tabSTR      =   new Array(d).fill(`\t`).toString().replace(/,/g,``);
             d++
             c++
             if(x.type == `Image`){
-                r.push(x)
+                ctx.push(x)
                 // console.log(x)
             }
             if(typeof x === 'object'){
                 for(let i in x){
                     let item    =   x[i]
                     // console.log(`TYPE`,tabSTR+item.type)
-                    recurse(item,id)
+                    recurse(item,ctx)
                 }
             }else{
                 // console.log(tabSTR+x)
@@ -483,6 +616,7 @@ console.log(`Undertaker start() --images TaskItem\t${i}\t${undownloadedImages.le
             return p
         }
         // END UTIL
+
         return
     }
 }
