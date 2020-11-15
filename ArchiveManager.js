@@ -37,7 +37,7 @@ var ArchiveManager    =   class{
         let bufferStore        =   new Buffer(0)
 
 
-        console.time(`ArchiveManager ${this.url}`)
+        // console.time(`ArchiveManager ${this.url}`)
         // ON FINISH, ADD REMAINING buffer IN STORE
 
         readStream.on(`end`,_=>{
@@ -45,8 +45,8 @@ var ArchiveManager    =   class{
             // zlib.gunzip( bufferStore, ( err, item ) => cb( JSON.parse( item ) ) )
             let item        =   zlib.gunzipSync(bufferStore)
             cb( JSON.parse( item ) )
-            console.timeEnd(`ArchiveManager ${this.url}`)
-            console.log(`END`,this.c)
+            // console.timeEnd(`ArchiveManager ${this.url}`)
+            // console.log(`END`,this.c)
             this.onFinish(this)
         })
 
