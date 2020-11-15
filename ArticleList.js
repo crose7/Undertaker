@@ -8,7 +8,7 @@ let argURL  =   process.argv[2]
 
 class ArticleList{
     constructor(args){
-console.log(`ArticleList()`,args)
+// console.log(`ArticleList()`,args)
 
         if(args.update && (args.startTime || args.endTime) ){ throw(`ArticleList() update ARGUMENT CANNOT BE USED WITH startTime or endTime`) }
         // SET DEFAULT VALUES
