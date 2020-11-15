@@ -238,6 +238,7 @@ console.log(`Undertaker start() update`)
 
 
         if( this.comments ){
+            this.interval = setInterval(_=>this.saveUniqueIDMap(),10000)
             let c=0
             commentIDs.forEach( id =>{
                 let startIndex  =   0
@@ -257,7 +258,7 @@ console.log(`Undertaker start() update`)
                             r               =   await r.json()
                         if( !r.data ){
                             console.error(`Undertaker start() --comments !NO_DATA`,r,id);
-                            this.error.push([`Undertaker start() --comments !NO_DATA`,r,id])
+                            this.errors.push([`Undertaker start() --comments !NO_DATA`,r,id])
                             await sleep(10000)
                             return
 
@@ -282,6 +283,7 @@ console.log(`Undertaker start() --comments while\t${c}/${commentIDs.length}\tloo
                     commentOutput.write( zlib.gzipSync( JSON.stringify(comments) ) )
                     // this.uniqueIDMap.get(id).post           =   true
                     this.uniqueIDMap.get(id).comments       =   true
+                    this.saveUniqueIDMap()
                 }))
             })
         }
@@ -353,8 +355,9 @@ console.log(`Undertaker start() --comments while\t${c}/${commentIDs.length}\tloo
 console.log(`Undertaker start() Beginning content download`,this.args)
         await taskQueue.start()
 console.log(`Undertaker start() Finished content download`)
+        clearInterval(this.interval)
         if( this.errors.length ){
-            this.errors.forEach(x=>console.log(x))
+            this.errors.forEach((x,i)=>console.log(`Error #${i}`,))
             console.log(`${this.errors.length} errors, please review terminal output, and rerun command.`)
         }
 
