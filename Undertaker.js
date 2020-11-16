@@ -44,14 +44,64 @@ let Undertaker              =   class{
         this.numImageDownloads      =   0
         this.numCommmentImageDownloads= 0
 
-        this.update         =   process.argv.some(x=>x===`--update`)  ||  ( args?args.update:0 )
-        this.download       =   process.argv.some(x=>x===`--download`)  ||  ( args?args.download:0 )
-        this.comments       =   process.argv.some(x=>x===`--comments`)  ||  ( args?args.comments:0 )
-        this.images         =   process.argv.some(x=>x===`--images`)    ||  ( args?args.images:0 )
-        this.commentImages  =   process.argv.some(x=>x===`--commentImages`)    ||  ( args?args.commentImages:0 )
-        this._status         =   process.argv.some(x=>x===`--status`)    ||  ( args?args.status:0 )
-        if( this._status ){ this.status(); return; }
+        this.update         =   process.argv.some(x=>x===`--update`)        ||  ( args?args.update:0 )
+        this.download       =   process.argv.some(x=>x===`--download`)      ||  ( args?args.download:0 )
+        this.comments       =   process.argv.some(x=>x===`--comments`)      ||  ( args?args.comments:0 )
+        this.images         =   process.argv.some(x=>x===`--images`)        ||  ( args?args.images:0 )
+        this.commentImages  =   process.argv.some(x=>x===`--commentImages`) ||  ( args?args.commentImages:0 )
+        this._status         =   process.argv.some(x=>x===`--status`)       ||  ( args?args.status:0 )
+        this._logPosts      =   process.argv.some(x=>x===`--logPosts`)      ||  ( args?args.logPosts:0 )
+        this._logAuthors    =   process.argv.some(x=>x===`--logAuthors`)   ||  ( args?args.logAuthors:0 )
+        this._logArticles    =   process.argv.some(x=>x===`--logArticles`)  ||  ( args?args.logArticles:0 )
+        if( this._status )      { this.status(); return; }
+        if( this._logPosts )    { this.logPosts(); return; }
+        if( this._logAuthors )  { this.logAuthors(); return; }
+        if( this._logArticles )  { this.logArticles(); return; }
         args?0:this.start()
+    }
+
+    logPosts(){
+        if( fs.existsSync(`${this.name}/posts.gz`) ){
+            let am          =   new ArchiveManager(`${this.name}/posts.gz`,()=>{})
+            am.each(x=>{
+                console.log(`id: ${x.id}\tauthorID:${x.authorId}\tdate: ${new Date(x.publishTimeMillis)}\ttitle: ${x.headline}`)
+            })
+        }
+    }
+
+    logArticles(){
+        if( fs.existsSync(`${this.name}/articles.gz`) ){
+            let am          =   new ArchiveManager(`${this.name}/articles.gz`,()=>{})
+            am.each(x=>{
+                console.log(`id: ${x.id}\tauthorID:${x.authorId}\tdate: ${new Date(x.publishTimeMillis)}\ttitle: ${x.headline}`)
+            })
+        }
+    }
+
+    logAuthors(){
+        console.log(`LOG AUTHORS`)
+        let authorArray     =   []
+        if( fs.existsSync(`${this.name}/authors.gz`) && 1){
+            console.log(`AUTHORS`)
+            let am          =   new ArchiveManager(`${this.name}/authors.gz`,()=>{
+                authorArray.sort( ( a, b ) => b.screenName>a.screenName?-1:1 ).forEach( author => console.log(`name: ${author.screenName}\t\t\tid: ${author.id}`) )
+            })
+            am.each( author => authorArray.push( author ) )
+        }
+        else if( fs.existsSync(`${this.name}/articles.gz`) ){
+            let am          =   new ArchiveManager(`${this.name}/articles.gz`,()=>{
+                authorMap.forEach(val=>authorArray.push(val))
+                authorArray.sort( ( a, b ) => b.screenName>a.screenName?-1:1 ).forEach( author => console.log(`name: ${author.screenName}\t\t\tid: ${author.id}`) )
+            })
+            let authorMap   =   new Map()
+            am.each(x=>{
+                if(x.authors){
+                    x.authors.forEach(author=>{
+                        if( !authorMap.get(author.id) ){ authorMap.set(author.id,author) }
+                    })
+                }
+            })
+        }
     }
 
     // uniqueIDMap FEATURES DOWNLOADED STATE FOR
@@ -99,9 +149,6 @@ let Undertaker              =   class{
         console.log(`NEW IDS`,c)
     }
 
-
-
-
     // USED FOR authors, blogs, links
     async loadIDSet( url, key ){
 console.log(`loadIDSet()`,url)
@@ -132,51 +179,76 @@ console.log(`POST manager`)
             posts:0,
             totalPosts:0,
             replyCounts:0,
-            articles:0,
-            totalArticles:0,
-            comments:0,
             images:0,
             totalImages:0,
+
+            articles:0,
+            totalArticles:0,
+            articleImages:0,
+            totalArticleImages:0,
+            comments:0,
+
             commentImages:0,
             totalCommentImages:0,
+
         }
         if( fs.existsSync(`${this.name}/posts.gz`) ){
             let am          =   new ArchiveManager(`${this.name}/posts.gz`,()=>{
-                console.log(`POSTS:\t\t${x.posts}/${this.uniqueIDMap.size}\t${x.replyCounts} comments`)
-                console.log(`IMAGES:\t\t${x.images}/${x.totalImages}`)
+                console.log(`POSTS:\t\t\t${x.posts}/${this.uniqueIDMap.size}\t${x.replyCounts} comments exist`)
+                console.log(`POSTS IMAGES:\t\t${x.images}/${x.totalImages}`)
             })
             am.each(item=>{
                 x.posts++
                 x.replyCounts+=item.replyCount
-                recurse(item.body,false)
+                recurse(item.body,`posts`)
+            })
+        }
+
+        if( fs.existsSync(`${this.name}/articles.gz`) ){
+            let am          =   new ArchiveManager(`${this.name}/posts.gz`,()=>{
+                console.log(`ARTICLES:\t\t${x.articles}/${this.uniqueIDMap.size}`)
+                console.log(`ARTICLE IMAGES:\t\t${x.articleImages}/${x.totalArticleImages}`)
+            })
+            am.each(item=>{
+                x.articles++
+                recurse(item.body,`articles`)
             })
         }
 
         if( fs.existsSync(`${this.name}/comments.gz`) ){
             let am          =   new ArchiveManager(`${this.name}/comments.gz`,()=>{
-                console.log(`ARTICLES:\t${x.articles}/${this.uniqueIDMap.size}\t${x.comments} DOWNLOADED comments`)
-                console.log(`COMMENT IMAGES:\t${x.commentImages}/${x.totalCommentImages}`)
+                console.log(`ARTICLES:\t\t${x.articles}/${this.uniqueIDMap.size}\t${x.comments} DOWNLOADED comments`)
+                console.log(`COMMENT IMAGES:\t\t${x.commentImages}/${x.totalCommentImages}`)
             })
             am.each(item=>{
-                x.articles++
                 x.comments+=item.length
-                item.forEach(comment=>recurse(comment.body,true))
+                item.forEach(comment=>recurse(comment.body,`comments`))
             })
         }
 
         if( fs.existsSync(`${this.name}/images`) ){ x.images        =   fs.readdirSync(`${this.name}/images`).length }
         if( fs.existsSync(`${this.name}/commentImages`) ){ x.commentImages =   fs.readdirSync(`${this.name}/commentImages`).length }
 
-        function recurse(y,isComments){
+        function recurse(y,ctx){
             // let tabSTR      =   new Array(d).fill(`\t`).toString().replace(/,/g,``);
             if(y.type == `Image`){
-                if(!isComments){x.totalImages++}
-                else{x.totalCommentImages++}
+                switch(ctx){
+                    case `posts`:
+                        x.totalImages++
+                        break
+                    case `articles`:
+                        x.totalArticleImages++
+                        break
+                    case `comments`:
+                        x.totalCommentImages++
+                        break
+                    default:
+                }
             }
             if(typeof y === 'object'){
                 for(let i in y){
                     let item    =   y[i]
-                    recurse(item,isComments)
+                    recurse(item,ctx)
                 }
             }else{}
         }
@@ -463,7 +535,7 @@ console.log(`Undertaker start() --images`)
             let articleFileInfo         =   fs.existsSync(`${name}/articles.gz`)?   fs.statSync(`${name}/articles.gz`).size:0
             if( ( postFileInfo === 0 ) && ( articleFileInfo === 0) ){ throw(`Undertaker start() --images NO CONTENT DOWNLOADED!`); return }
             let fileToScan              =   postFileInfo > articleFileInfo?     `posts` : `articles`
-console.log(`FILE TO SCAN`,fileToScan)
+// console.log(`FILE TO SCAN`,fileToScan)
 
             // if( !fs.existsSync(`images`) ){ fs.mkdirSync(`images`) }
             if( !fs.existsSync(`${name}/images`) ){ fs.mkdirSync(`${name}/images`) }
