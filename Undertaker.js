@@ -210,14 +210,13 @@ console.log(`POST manager`)
                 console.log(`ARTICLE IMAGES:\t\t${x.articleImages}/${x.totalArticleImages}`)
             })
             am.each(item=>{
-                x.articles++
                 recurse(item.body,`articles`)
+                x.articles++
             })
         }
 
         if( fs.existsSync(`${this.name}/comments.gz`) ){
             let am          =   new ArchiveManager(`${this.name}/comments.gz`,()=>{
-                console.log(`ARTICLES:\t\t${x.articles}/${this.uniqueIDMap.size}\t${x.comments} DOWNLOADED comments`)
                 console.log(`COMMENT IMAGES:\t\t${x.commentImages}/${x.totalCommentImages}`)
             })
             am.each(item=>{
