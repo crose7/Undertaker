@@ -205,7 +205,7 @@ console.log(`POST manager`)
         }
 
         if( fs.existsSync(`${this.name}/articles.gz`) ){
-            let am          =   new ArchiveManager(`${this.name}/posts.gz`,()=>{
+            let am          =   new ArchiveManager(`${this.name}/articles.gz`,()=>{
                 console.log(`ARTICLES:\t\t${x.articles}/${this.uniqueIDMap.size}`)
                 console.log(`ARTICLE IMAGES:\t\t${x.articleImages}/${x.totalArticleImages}`)
             })
