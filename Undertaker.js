@@ -49,14 +49,19 @@ let Undertaker              =   class{
         this.comments       =   process.argv.some(x=>x===`--comments`)      ||  ( args?args.comments:0 )
         this.images         =   process.argv.some(x=>x===`--images`)        ||  ( args?args.images:0 )
         this.commentImages  =   process.argv.some(x=>x===`--commentImages`) ||  ( args?args.commentImages:0 )
-        this._status         =   process.argv.some(x=>x===`--status`)       ||  ( args?args.status:0 )
+        this.rssExport      =   process.argv.some( x => x.match( /rss\/export/ ) )|| (args?args.url.match(/rss\/export/)?args.url:0:0)
+        // this.url            =   process.argv.some( x => x.match( /rss\/export/ ) )|| args.url:0
+
+        this._status        =   process.argv.some(x=>x===`--status`)        ||  ( args?args.status:0 )
         this._logPosts      =   process.argv.some(x=>x===`--logPosts`)      ||  ( args?args.logPosts:0 )
-        this._logAuthors    =   process.argv.some(x=>x===`--logAuthors`)   ||  ( args?args.logAuthors:0 )
-        this._logArticles    =   process.argv.some(x=>x===`--logArticles`)  ||  ( args?args.logArticles:0 )
+        this._logAuthors    =   process.argv.some(x=>x===`--logAuthors`)    ||  ( args?args.logAuthors:0 )
+        this._logArticles   =   process.argv.some(x=>x===`--logArticles`)   ||  ( args?args.logArticles:0 )
+        this._logBlogs      =   process.argv.some(x=>x===`--logBlogs`)      ||  ( args?args.logBlogs:0 )
         if( this._status )      { this.status(); return; }
         if( this._logPosts )    { this.logPosts(); return; }
+        if( this._logArticles ) { this.logArticles(); return; }
         if( this._logAuthors )  { this.logAuthors(); return; }
-        if( this._logArticles )  { this.logArticles(); return; }
+        if( this._logBlogs )    { this.logBlogs(); return; }
         args?0:this.start()
     }
 
@@ -81,7 +86,7 @@ let Undertaker              =   class{
     logAuthors(){
         console.log(`LOG AUTHORS`)
         let authorArray     =   []
-        if( fs.existsSync(`${this.name}/authors.gz`) && 1){
+        if( fs.existsSync(`${this.name}/authors.gz`) && 0 ){
             console.log(`AUTHORS`)
             let am          =   new ArchiveManager(`${this.name}/authors.gz`,()=>{
                 authorArray.sort( ( a, b ) => b.screenName>a.screenName?-1:1 ).forEach( author => console.log(`name: ${author.screenName}\t\t\tid: ${author.id}`) )
@@ -104,6 +109,29 @@ let Undertaker              =   class{
         }
     }
 
+    logBlogs(){
+        console.log(`LOG BLOG`)
+        let blogArray     =   []
+        if( fs.existsSync(`${this.name}/blogs.gz`) && 0 ){
+            console.log(`BLOG`)
+            let am          =   new ArchiveManager(`${this.name}/blogs.gz`,()=>{
+                blogArray.sort( ( a, b ) => b.screenName>a.screenName?-1:1 ).forEach( blog => console.log(`name: ${blog.screenName}\t\t\tid: ${author.id}`) )
+            })
+            am.each( blog => blogArray.push( blog ) )
+        }
+        else if( fs.existsSync(`${this.name}/articles.gz`) ){
+            let am          =   new ArchiveManager(`${this.name}/articles.gz`,()=>{
+                blogMap.forEach(val=>blogArray.push(val))
+                blogArray.sort( ( a, b ) => b.name>a.name?-1:1 ).forEach( blog => console.log(`name: ${blog.name}\t\t\tid: ${blog.id}`) )
+            })
+            let blogMap   =   new Map()
+            am.each(x=>{
+                if(x.defaultBlog){
+                    blogMap.set(x.defaultBlog.id,x.defaultBlog)
+                }
+            })
+        }
+    }
     // uniqueIDMap FEATURES DOWNLOADED STATE FOR
     // post, comments, images
     // WHICH THEN GETS SAVED WHEN THE DOWNLOAD OPERATION COMPLETES
@@ -111,6 +139,7 @@ let Undertaker              =   class{
 
     // WE CAN'T SAVE AS A MAP, SO WE HAVE TO CONVERT TO AND FRO
     saveUniqueIDMap(){
+        console.log(`PROGRESS SAVED`)
         let o           =   {}
         this.uniqueIDMap.forEach( ( value, key ) =>{
             o[key]      =   value
@@ -194,8 +223,8 @@ console.log(`POST manager`)
         }
         if( fs.existsSync(`${this.name}/posts.gz`) ){
             let am          =   new ArchiveManager(`${this.name}/posts.gz`,()=>{
-                console.log(`POSTS:\t\t\t${x.posts}/${this.uniqueIDMap.size}\t${x.replyCounts} comments exist`)
-                console.log(`POSTS IMAGES:\t\t${x.images}/${x.totalImages}`)
+                console.log(`POSTS INFO:\t\t${x.posts}/${this.uniqueIDMap.size}\tunique posts downloaded/article list count\t${x.images}/${x.totalImages}\tdownloaded/total images\t${x.replyCounts}\tcomments exist`)
+                // console.log(`POSTS IMAGES:\t\t${x.images}/${x.totalImages}`)
             })
             am.each(item=>{
                 x.posts++
@@ -206,8 +235,8 @@ console.log(`POST manager`)
 
         if( fs.existsSync(`${this.name}/articles.gz`) ){
             let am          =   new ArchiveManager(`${this.name}/articles.gz`,()=>{
-                console.log(`ARTICLES:\t\t${x.articles}/${this.uniqueIDMap.size}`)
-                console.log(`ARTICLE IMAGES:\t\t${x.articleImages}/${x.totalArticleImages}`)
+                console.log(`ARTICLES INFO:\t\t${x.articles}/${this.uniqueIDMap.size}\tunique articles downloaded/article list count\t${x.articleImages}/${x.totalArticleImages}\tdownloaded/total images `)
+                // console.log(`ARTICLE IMAGES:\t\t${x.articleImages}/${x.totalArticleImages}`)
             })
             am.each(item=>{
                 recurse(item.body,`articles`)
@@ -217,7 +246,7 @@ console.log(`POST manager`)
 
         if( fs.existsSync(`${this.name}/comments.gz`) ){
             let am          =   new ArchiveManager(`${this.name}/comments.gz`,()=>{
-                console.log(`COMMENT IMAGES:\t\t${x.commentImages}/${x.totalCommentImages}`)
+                console.log(`COMMENT INFO:\t\t${x.commentImages}/${x.totalCommentImages}\tdownloaded/total images\t${x.comments}\tcomments downloaded`)
             })
             am.each(item=>{
                 x.comments+=item.length
@@ -278,7 +307,14 @@ console.log(`ARGV`,process.argv,args,this.name)
 
 
 
-        if ( !fs.existsSync(`${this.name}/ArticleList`) ){
+        if( this.rssExport ){
+            let articleList         =   new ArticleList( {name:this.name} )
+console.log(`URL`,url)
+            console.log(`ArticleList start() rss`)
+                await articleList.start(this.rssExport)
+        }
+        // if ( !fs.existsSync(`${this.name}/ArticleList`) ){
+        else if( process.argv.some( x => x.match(/(http:|https:)/)) ){
             console.log(`Undertaker start() create`)
             let url                 =   args?args.url:process.argv[this.nameIndex+1]
             let type                =   url.match(/https\:\/\/kinja.com\//)?`user`:`blog`
@@ -348,7 +384,8 @@ console.log(`Undertaker start() update`)
             if(value.comments){return}
             commentIDs.push(key)
         })
-
+            commentIDs      =   commentIDs.sort( ( a, b ) => b-a )
+            // commentIDs      =   commentIDs.slice(0,1000)
         let queueIDCount    =   queueIDs.length
         let commentIDCount  =   commentIDs.length
 
@@ -380,17 +417,19 @@ console.log(`Undertaker start() update`)
             //     return acc
             // },{})
             // console.log(`MISSED?`,Object.entries(x).filter(x=>x[1]>1))
-            this.saveUniqueIDMap()
+            // this.saveUniqueIDMap()
         })
 
 
 
+        this.interval = setInterval(_=>this.saveUniqueIDMap(),60000)
         if( this.comments ){
-            this.interval = setInterval(_=>this.saveUniqueIDMap(),10000)
             let c=0
             commentIDs.forEach( id =>{
                 let startIndex  =   0
                 taskQueue.addItem( new TaskItem(async _=>{
+// console.log(`TASK BEGIN`,c);c++;
+// return
     // console.log(`NEW RUN FUNC`)
                     let fetching            =   true
                     let article
@@ -401,9 +440,9 @@ console.log(`Undertaker start() update`)
                         c++
                         let halt            =   false
                         let queryString     =   `https://kinja.com/ajax/comments/views/flatReplies/${id}?startIndex=${startIndex}&maxReturned=100&approvedOnly=false&cache=true&sorting=oldest`
-                        let r               =   await fetch( queryString ).catch( err => { console.error(`Undertaker start --comments TaskItem`,err); this.errors.push(err); halt=true } )
-                        if( halt ){ return }
-                            r               =   await r.json()
+                        // let r               =   await fetch( queryString ).catch( err => { console.error(`Undertaker start --comments TaskItem`,err); this.errors.push(err); halt=true } )
+                        let r       =   await fetch(queryString).catch( err =>  { this.errors.push(err); throw(`Undertaker start() --download TaskItem fetch`,err) })
+                            r       =   await r.json().catch(           err =>  { this.errors.push(err); throw(`Undertaker start() --download TaskItem json()`,err) })
                         if( !r.data ){
                             console.error(`Undertaker start() --comments !NO_DATA`,r,id);
                             this.errors.push([`Undertaker start() --comments !NO_DATA`,r,id])
@@ -412,11 +451,16 @@ console.log(`Undertaker start() update`)
 
                         }
                         article             =   r.data.items[0].reply
+
                         let children        =   r.data.items[0].children
 // console.log(`Undertaker start() --comments while\t${this.numArticleDownloads}/${commentIDs.length}\tloops:${d}\tid:${id}\tstartIndex:${children.pagination.curr.startIndex}\ttotal:${children.pagination.curr.total}\titems:${children.items.length}\ttitle:${article.headline}`)
                         if ( children ){
                             // children.items.map( x => JSON.stringify(x) ).map( x => zlib.gzipSync(x) ).forEach( child => commentOutput.write(child) )
-                            children.items.forEach(x=>comments.push(x))
+                            // children.items.forEach(x=>comments.push(x))
+                            children.items.forEach(x=>{
+                                comments.push(x)
+                                // console.log(x.firstSentence)
+                            })
                             this.numCommentDownloads+=children.items.length
                             fetching        =   !!children.pagination.next
 
@@ -428,10 +472,9 @@ console.log(`Undertaker start() update`)
                     this.numArticleDownloads++
                     articleOutput.write( zlib.gzipSync( JSON.stringify(article) ) )
                     commentOutput.write( zlib.gzipSync( JSON.stringify(comments) ) )
-                    // console.log(`Undertaker start() --comments TaskItem\t${this.numArticleDownloads}/${commentIDCount} articles`)
 console.log(`Undertaker start() --comments while\t${this.numArticleDownloads}/${commentIDs.length}\tloops:${loopCount}\tid:${id}\tcomments:${comments.length}\ttitle:${article.headline}`)
                     this.uniqueIDMap.get(id).comments       =   true
-                    this.saveUniqueIDMap()
+                    // this.saveUniqueIDMap()
                 }))
             })
         }
@@ -447,7 +490,6 @@ console.log(`Undertaker start() --comments while\t${this.numArticleDownloads}/${
                 let slice       =   queueIDs.splice(0,100)  //SLICE MUTATES THE ORIGINAL ARRAY! :D
 
                 slice.forEach( id => queryString +=  `&postId=${id}` )
-
                 taskQueue.addItem( new TaskItem( async _=>{
                     // let halt    =   false
                     // let r       =   await fetch(queryString).catch(err=>{ console.error(`Undertaker start() --download TaskItem fetch`,err); this.errors.push(err); halt=true })
@@ -455,7 +497,6 @@ console.log(`Undertaker start() --comments while\t${this.numArticleDownloads}/${
                     let r       =   await fetch(queryString).catch( err =>  { this.errors.push(err); throw(`Undertaker start() --download TaskItem fetch`,err) })
                         r       =   await r.json().catch(           err =>  { this.errors.push(err); throw(`Undertaker start() --download TaskItem json()`,err) })
                     // if( halt ){ return }
-
                     r.data.posts
                         .filter(    post => !this.uniqueIDMap.get(parseInt(post.id)).post )
                         .map(       post => [zlib.gzipSync( JSON.stringify(post) ),parseInt(post.id)] )
@@ -508,6 +549,7 @@ console.log(`Undertaker start() Finished content download`)
             this.errors.forEach((x,i)=>console.log(`Error #${i}`,x))
             console.log(`${this.errors.length} errors, please review terminal output, and rerun command.`)
         }
+        this.saveUniqueIDMap()
         clearInterval(this.interval)
 
 
