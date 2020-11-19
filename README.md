@@ -1,6 +1,29 @@
 # Undertaker
 NodeJS backup utility for the Kinja platform
 
+# *EXPORT URL SUPPORT ADDED!*
+## Hotfix Info:
+To archive a blog that you have created:
+1) Navigate to your sub-blog i.e. `https://myblogname.kinja.com`
+2) Click the export link that Kinja provides
+3) Copy the URL in the navigation bar
+4) Open the command line
+5) Navigate to Undertaker
+  5a) Ensure that Undertaker is up to date by entering the command `git pull https://github.com/crose7/Undertaker`
+  5b) Alternately, update Undertaker by replacing files by hand (See *Installation*)
+6) Create a new archive per the following command example:
+```
+node Undertaker.js newarchivename <paste URL here>
+```
+**CAUTION:** *the navigation bar URL contains a short-lived (hour+) access token*, and could in theory be used to access your Kinja account. While Undertaker makes no such attempt, you should be aware of this risk.
+ 
+The removal of user sub-blogs has altered the operation of Undertaker:
+* Existing archives may still download content with `--download`, `--comments`, `--images`, and `--contentImages`
+* **Existing archives can no longer updated**
+* Creating archives with a sub-blog url i.e. `https://myuserblog.kinja.com` no longer functions
+* Creating archives with a user page url i.e. `https://kinja.com/myusername` no longer functions
+
+
 ## Installation
 
 Download **NPM** and **Node** here: https://www.npmjs.com/get-npm  
@@ -23,7 +46,7 @@ You can check if you already have these installed by running these commands at t
 ## Updating Undertaker  
 Undertaker is in rapid development. Too ensure that you recieve the benefits of these added features, take the following steps:  
 ### GIT Method
-Navigate to your Undertaker folder in the command line and run `git pull`  
+Navigate to your Undertaker folder in the command line and run `git pull https://github.com/crose7/Undertaker`  
 
 ### By hand  
 Download a zip of the repo, extract the files, drag those files into your pre-existing directory and overwrite the old ones.
@@ -84,7 +107,11 @@ One and done:
 
 ### Checking the status of your archives
 ```
-$Undertaker node Undertaker.js example --status
+$Undertaker node Undertaker.js example --status       // may take several minutes in large backups!
+$Undertaker node Undertaker.js example --logPosts     // log posts downloaded with --download 
+$Undertaker node Undertaker.js example --logArticles  // log posts downloaded with --coments
+$Undertaker node Undertaker.js example --logAuthors   // log info of every author who posted to your sub-blog
+$Undertaker node Undertaker.js example --logBlogs     // log info of every blog that posted to your sub-blog
 ```
 (More on the way!)
 
