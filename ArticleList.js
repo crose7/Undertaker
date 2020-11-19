@@ -117,8 +117,8 @@ class ArticleList{
             }else{
                 cond                =   false
             }
+            this.writeToFile()
         }
-        this.writeToFile()
     }
 
 
