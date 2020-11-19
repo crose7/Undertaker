@@ -3,6 +3,7 @@ let fetch   =   require(`node-fetch`)
 let fs      =   require(`fs`)
 let bson    =   require(`bson`)
 let zlib    =   require(`zlib`)
+let xml2js  =   require(`xml2js`)
 // args 0 AND 1 ARE node AND script
 let argURL  =   process.argv[2]
 
@@ -81,10 +82,44 @@ class ArticleList{
 
 
 
-    async start(){ await this.fetchPage() }
+    async start(exportURL){
+        console.log(`ArticleList start()`,exportURL)
+        if( !!exportURL ){
+            await this.fetchFeed(exportURL)
+        }else{
+            await this.fetchPage()
+        }
+    }
 
 
+    async fetchFeed(exportURL){
+        console.log(`ArchiveManager fetchFeed()`,exportURL)
+        let cond            =   true
+        let queryURL        =   exportURL
+        let startTime
+        while(cond){
+            let r           =   await fetch( queryURL )                 .catch( err => { throw(`ArticleList fetchFeed() fetch()`, err ) })
+                r           =   await r.text()
+                r           =   await xml2js.parseStringPromise( r )    .catch( err => { throw(`ArticleList fetchFeed() xml2js`, err ) })
+        console.log(`ArchiveManager fetchFeed() loop`,r.feed.entry.length)
 
+            r.feed.entry.forEach( entry => {
+                let id      =   entry.id[0].match(/\d*$/)[0]
+                console.log(`ArchiveManager fetchFeed() loop id`,id)
+                this.data.push(id)
+            })
+
+            if( r.feed.link.some(link=>link.$.rel===`next`) ){
+                let next            =   r.feed.link.filter( link => link.$.rel === `next` )[0]
+                startTime           =   next.$.href.split(`&`)[1]
+                this.startTime      =   startTime.split(`=`)[1]
+                queryURL            =   exportURL+startTime
+            }else{
+                cond                =   false
+            }
+        }
+        this.writeToFile()
+    }
 
 
     fetchPageEvaluation(x){
